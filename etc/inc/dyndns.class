@@ -665,11 +665,33 @@
 					curl_setopt($ch, CURLOPT_URL, $server);
 					break;
 				case 'cloudflare':
+					if ($this->_dnsVerboseLog) {
+						log_error("Cloudflare ({$this->_dnsHost}): DNS update() starting.");
+					}
 					$needsIP = TRUE;
 					$dnsServer ='www.cloudflare.com';
 					$dnsHost = str_replace(' ','', $this->_dnsHost);
-					$URL = "https://{$dnsServer}/api.html?a=DIUP&email={$this->_dnsUser}&tkn={$this->_dnsPass}&ip={$this->_dnsIP}&hosts={$dnsHost}";
-					curl_setopt($ch, CURLOPT_URL, $URL);
+					list($hostname, $domain) = explode(".", $this->_dnsHost, 2);
+					$URL = "https://{$dnsServer}/api_json.html";
+					$postFields = array(
+					    "a" => "rec_edit",
+					    "tkn" => $this->_dnsPass,       // API key available on your Account page in the password field.
+					    "email" => $this->_dnsUser,     // Email address of the account as username
+					    "z" => $domain,            		// The target domain base off of $this->_dnsHost
+					    "id" => $this->_dnsMX,            // DNS Record ID. Available by using the rec_load_all call. Utilizing MX field
+					    "type" => "A",                  // [Hardcoded] Type of DNS record. Values include: [A/CNAME/MX/TXT/SPF/AAAA/NS/SRV/LOC]
+					    "name" => $hostname,             // Name of the DNS record (as shown in the DNS settings page for the domain)
+					    "ttl" => "1800",                   // [Hardcoded] TTL of record in seconds. 1 = Automatic, otherwise, value must in between 120 and 86400 seconds.
+					    "service_mode" => "0",          // [Hardcoded] Status of CloudFlare Proxy, 1 = orange cloud, 0 = grey cloud.
+					    "content" => $this->_dnsIP      // The content of the DNS record, will depend on the the type of record being added
+					);
+					$curlOptions = array(
+					    CURLOPT_URL => $URL,
+					    CURLOPT_POST => true,
+					    CURLOPT_POSTFIELDS => $postFields,
+					    CURLOPT_SSL_VERIFYPEER => FALSE
+					);
+					curl_setopt_array($ch, $curlOptions);
 					break;
 				case 'eurodns':
 					$needsIP = TRUE;
